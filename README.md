@@ -7,6 +7,7 @@ A Python CLI wrapper around the JavaScript [suncalc](https://github.com/mourner/
 - Calculate sunrise, sunset, and all twilight phases for any location and date
 - Get moonrise, moonset times, and lunar phase
 - Support for coordinate input (lat/lng) or city name lookup via GeoPy
+- **Automatic local timezone detection and display** - times shown in local timezone
 - Output in human-readable format or JSON
 - Uses the accurate suncalc.js library (v2.0) - matches US Naval Observatory data
 
@@ -21,7 +22,7 @@ cd suncalc-python-cli
 npm install
 
 # Install Python dependencies
-pip install geopy
+pip install geopy timezonefinder
 ```
 
 ## Usage
@@ -60,55 +61,59 @@ SunCalc Results
 ======================================================================
 Location: Stephens City, Frederick County, Virginia, United States
 Coordinates: 39.083222°N, -78.218285°E
-Date: 2026-06-19 05:40:53 UTC
+Timezone: America/New_York
+Date: 2026-06-19 01:44:50 EDT
 
 SUN TIMES
 ----------------------------------------------------------------------
-  Night end            07:47:05 UTC
-  Nautical dawn        08:33:56 UTC
-  Dawn                 09:14:36 UTC
-  Sunrise              09:46:49 UTC
-  Sunrise end          09:50:02 UTC
-  Golden hour end      10:26:54 UTC
-  Solar noon           17:14:19 UTC
-  Golden hour          00:01:45 UTC
-  Sunset start         00:38:38 UTC
-  Sunset               00:41:51 UTC
-  Dusk                 01:14:04 UTC
-  Nautical dusk        01:54:44 UTC
-  Night                02:41:37 UTC
+  Night end            03:47:05 EDT
+  Nautical dawn        04:33:56 EDT
+  Dawn                 05:14:36 EDT
+  Sunrise              05:46:49 EDT
+  Sunrise end          05:50:02 EDT
+  Golden hour end      06:26:54 EDT
+  Solar noon           13:14:19 EDT
+  Golden hour          20:01:45 EDT
+  Sunset start         20:38:38 EDT
+  Sunset               20:41:51 EDT
+  Dusk                 21:14:04 EDT
+  Nautical dusk        21:54:44 EDT
+  Night                22:41:37 EDT
 
-Sun position: altitude -26.70°, azimuth 6.88°
+Sun position: altitude -26.60°, azimuth 7.89°
 
 MOON TIMES
 ----------------------------------------------------------------------
-  Moonrise: 14:53:07 UTC
-  Moonset:  03:55:42 UTC
+  Moonrise: 10:53:07 EDT
+  Moonset:  23:55:42 EDT
 
 Moon phase: Waxing Crescent
   Illumination: 22.8%
   Phase value: 0.158
   Waxing: True
 
-Moon position: altitude -18.16°, azimuth 305.63°
-Distance: 372340 km
+Moon position: altitude -18.77°, azimuth 306.37°
+Distance: 372356 km
 ======================================================================
 ```
 
+**Note:** Times are automatically displayed in the local timezone of the location (EDT for Stephens City, VA, BST for London, JST for Tokyo, etc.)
+
 ## How It Works
 
-1. **Python CLI** (`suncalc_cli.py`) - Handles argument parsing, geocoding via GeoPy, and output formatting
+1. **Python CLI** (`suncalc_cli.py`) - Handles argument parsing, geocoding via GeoPy, timezone lookup, and output formatting
 2. **Node.js Bridge** (`suncalc_bridge.js`) - Interfaces with the suncalc JavaScript library
 3. **suncalc.js** - Performs the actual astronomical calculations (installed via npm)
 
-The Python script calls the Node.js bridge via subprocess, passing JSON input and receiving JSON output.
+The Python script calls the Node.js bridge via subprocess, passing JSON input and receiving JSON output. Times are converted from UTC to local timezone using `timezonefinder` and Python's `zoneinfo`.
 
 ## Requirements
 
-- Python 3.6+
+- Python 3.9+ (for zoneinfo)
 - Node.js 12+
-- geopy (Python package)
-- suncalc (npm package)
+- geopy (Python package) - for city geocoding
+- timezonefinder (Python package) - for timezone lookup
+- suncalc (npm package) - for astronomical calculations
 
 ## Accuracy
 
