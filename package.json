@@ -1,0 +1,15 @@
+{
+  "name": "suncalc-python",
+  "version": "1.0.0",
+  "description": "Python CLI wrapper for suncalc.js",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["suncalc", "sun", "moon", "astronomy"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "suncalc": "^2.0.0"
+  }
+}
