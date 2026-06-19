@@ -14,6 +14,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 try:
     from geopy.geocoders import Nominatim
@@ -23,6 +24,16 @@ except ImportError:
     GEOPY_AVAILABLE = False
     print("Warning: geopy not installed. City lookup disabled.", file=sys.stderr)
     print("Install with: pip install geopy", file=sys.stderr)
+
+try:
+    from timezonefinder import TimezoneFinder
+    TZ_FINDER = TimezoneFinder()
+    TZ_AVAILABLE = True
+except ImportError:
+    TZ_AVAILABLE = False
+    TZ_FINDER = None
+    print("Warning: timezonefinder not installed. Times will be shown in UTC.", file=sys.stderr)
+    print("Install with: pip install timezonefinder", file=sys.stderr)
 
 
 def geocode_location(location_string):
@@ -39,6 +50,38 @@ def geocode_location(location_string):
             raise ValueError(f"Could not geocode location: {location_string}")
     except GeopyError as e:
         raise RuntimeError(f"Geocoding error: {e}")
+
+
+def get_timezone_for_coords(lat, lng):
+    """Get timezone name for coordinates"""
+    if not TZ_AVAILABLE or TZ_FINDER is None:
+        return None
+    try:
+        tz_name = TZ_FINDER.timezone_at(lat=lat, lng=lng)
+        return tz_name
+    except Exception:
+        return None
+
+
+def format_time(iso_string, timezone_name=None):
+    """Format ISO time string for display in local timezone"""
+    if not iso_string:
+        return "—"
+    
+    try:
+        dt = datetime.fromisoformat(iso_string.replace('Z', '+00:00'))
+        if timezone_name:
+            try:
+                local_tz = ZoneInfo(timezone_name)
+                dt_local = dt.astimezone(local_tz)
+                # Show time with timezone abbreviation
+                return dt_local.strftime("%H:%M:%S %Z")
+            except Exception:
+                # Fall back to UTC if timezone conversion fails
+                pass
+        return dt.strftime("%H:%M:%S UTC")
+    except (ValueError, TypeError):
+        return iso_string
 
 
 def call_suncalc_bridge(lat, lng, date_str=None):
@@ -78,22 +121,6 @@ def call_suncalc_bridge(lat, lng, date_str=None):
         raise RuntimeError("suncalc bridge timed out")
     except json.JSONDecodeError as e:
         raise RuntimeError(f"Failed to parse suncalc output: {e}")
-
-
-def format_time(iso_string, timezone=None):
-    """Format ISO time string for display"""
-    if not iso_string:
-        return "—"
-    
-    try:
-        dt = datetime.fromisoformat(iso_string.replace('Z', '+00:00'))
-        if timezone:
-            # Note: Full timezone support would require pytz/zoneinfo
-            # For now, just show UTC
-            pass
-        return dt.strftime("%H:%M:%S UTC")
-    except (ValueError, TypeError):
-        return iso_string
 
 
 def get_moon_phase_name(phase):
@@ -181,6 +208,9 @@ Examples:
         print(json.dumps(result, indent=2))
         return
     
+    # Get timezone for coordinates
+    timezone_name = get_timezone_for_coords(lat, lng)
+    
     # Format human-readable output
     date_obj = datetime.fromisoformat(result["date"].replace('Z', '+00:00'))
     
@@ -190,7 +220,17 @@ Examples:
     if address:
         print(f"Location: {address}")
     print(f"Coordinates: {lat:.6f}°N, {lng:.6f}°E")
-    print(f"Date: {date_obj.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+    if timezone_name:
+        print(f"Timezone: {timezone_name}")
+        # Convert date to local time for display
+        try:
+            local_tz = ZoneInfo(timezone_name)
+            date_local = date_obj.astimezone(local_tz)
+            print(f"Date: {date_local.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        except Exception:
+            print(f"Date: {date_obj.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+    else:
+        print(f"Date: {date_obj.strftime('%Y-%m-%d %H:%M:%S UTC')}")
     print()
     
     # Sun times
@@ -221,7 +261,7 @@ Examples:
         ]
         
         for label, key in time_labels:
-            time_str = format_time(times.get(key))
+            time_str = format_time(times.get(key), timezone_name)
             print(f"  {label:20s} {time_str}")
     
     print()
@@ -241,8 +281,8 @@ Examples:
         elif moon["alwaysDown"]:
             print("🌑 Moon is always down")
         else:
-            rise = format_time(moon_times.get("rise"))
-            set_time = format_time(moon_times.get("set"))
+            rise = format_time(moon_times.get("rise"), timezone_name)
+            set_time = format_time(moon_times.get("set"), timezone_name)
             print(f"  Moonrise: {rise}")
             print(f"  Moonset:  {set_time}")
         
